@@ -1,0 +1,3 @@
+# Common lisp fasl files
+*.fasl
+*.lx64fsl
