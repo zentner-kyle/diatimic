@@ -23,7 +23,10 @@
 
 (defvar *user-name-password-map* (make-hash-table))
 
-(defparameter *code-dir* (concatenate 'string (sb-posix:getcwd) "/" ))
+(defparameter *code-dir* (concatenate 'string
+                                      #+sbcl(sb-posix:getcwd)
+                                      #+ccl(format nil "~a" (ccl:current-directory)
+                                                   ) "/" ))
 
 ;; links bootstrap.css to my working dir
 ;; (push
@@ -42,6 +45,7 @@
         hunchentoot:*dispatch-table*))
 
 (defun confirm-password (username password)
+  (print "Confirming password!")
   (let ((real-password (gethash username *user-name-password-map*)))
     (equal (hash-password password) real-password)))
 
@@ -63,10 +67,11 @@
             ,@body)))
 
 (hunchentoot:define-easy-handler (main-login-page :uri "/") ()
+  (format t "TESTSTESTSTEST")
   (let ((title "diatimic, the graphing time tracker")
         (username (hunchentoot:post-parameter "username"))
         (password (hunchentoot:post-parameter "password")))
-    (hunchentoot:no-cache)
+    ;; (hunchentoot:no-cache)
     (if (and username password)
         (if (confirm-password username password)
             (progn
@@ -80,23 +85,25 @@
                            (:body (:center
                                    (:p (format t "Sorry, could not log in as ~a" username))))))
         (std-html-page :title title
-                       (:script :type "text/javascript"
-                                (cl-who:str (ps:ps
-                                       (defun login-callback ()
-                                         (alert "Logging in!")))))
                        (:body (:center
                                (:h1 "Welcome to diatimic, the graphing time tracker!"))
                               (:p "Please login")
                               (:p "Username")
-                              (:p (:form :method :post
-                                         (:input :type :text
-                                                 :name "username"
-                                                 :value "")))
-                              (:p "Password:")
-                              (:p (:form :method :post
-                                         (:input :type :password
-                                                 :name "password"
-                                                 :value "")))
-                              (:a :class "btn btn-primary btn-large" :style "padding:14px 0px; margin-bottom:0px;width: 50%;" :href "#" :onclick (ps:ps (login-callback))
-                                  "Login"))))))
+                              (:form :method :post
+                                     :onsubmit (ps:ps-inline
+                                                (progn
+                                                  (when (= (ps:@ username value) "")
+                                                    (alert "Please enter a username."))
+                                                  (when (= (ps:@ password value) "")
+                                                    (alert "Please enter a password."))))
+                                     (:p (:input :type :text
+                                                 :name "username"))
+                                     (:p "Password")
+                                     (:p (:input :type :password
+                                                 :name "password"))
+                                     (:p (:input 
+                                          :type :submit
+                                          :class "btn btn-primary btn-large"
+                                          :style "padding:14px 0px; margin-bottom:0px;width: 50%;"
+                                          :value "Login"))))))))
 
