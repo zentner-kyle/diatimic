@@ -29,20 +29,21 @@
                                                    ) "/" ))
 
 ;; links bootstrap.css to my working dir
-;; (push
-;;  (hunchentoot:create-static-file-dispatcher-and-handler
-;;   "bootstrap.css" (concatenate 'string *code-dir* "bootstrap.css"))
-;;       hunchentoot:*dispatch-table*)
+(push
+ (hunchentoot:create-static-file-dispatcher-and-handler
+  "bootstrap.css" (concatenate 'string *code-dir* "bootstrap.css"))
+      hunchentoot:*dispatch-table*)
+
+(defun add-file-to-path (file)
+  (push
+   (hunchentoot:create-static-file-dispatcher-and-handler
+         (concatenate 'string "/" file) (concatenate 'string *code-dir* file))
+        hunchentoot:*dispatch-table*))
 
 (add-file-to-path "bootstrap.css")
 (add-file-to-path "mainpage.css")
 (add-file-to-path "bootstrap-responsive.css")
 
-(defun add-file-to-path (file)
-  (push
-   (hunchentoot:create-static-file-dispatcher-and-handler
-         file (concatenate 'string *code-dir* file))
-        hunchentoot:*dispatch-table*))
 
 (defun confirm-password (username password)
   (print "Confirming password!")
@@ -101,7 +102,7 @@
                                      (:p "Password")
                                      (:p (:input :type :password
                                                  :name "password"))
-                                     (:p (:input 
+                                     (:p (:input
                                           :type :submit
                                           :class "btn btn-primary btn-large"
                                           :style "padding:14px 0px; margin-bottom:0px;width: 50%;"
