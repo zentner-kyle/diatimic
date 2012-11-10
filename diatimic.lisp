@@ -2,15 +2,10 @@
 
 (in-package #:diatimic)
 
-(shadowing-import :cl-who)
-(use-package :cl-who)
-(shadowing-import :parenscript)
-(use-package :parenscript)
-
 ;;; "diatimic" goes here. Hacks and glory await!
 
 (defmacro with-html (&body body)
-  `(with-html-output-to-string (*standard-output* nil :prologue t :indent t)
+  `(cl-who:with-html-output-to-string (*standard-output* nil :prologue t :indent t)
      ,@body))
 
 (defparameter *main-port* 17036)
@@ -59,7 +54,7 @@
                                    (:p (format t "Sorry, could not log in as ~a" username))))))
         (std-html-page :title title
                        (:script :type "text/javascript"
-                                (str (ps
+                                (cl-who:str (ps:ps
                                        (defun login-callback ()
                                          (alert "Logging in!")))))
                        (:body (:center
@@ -75,6 +70,6 @@
                                          (:input :type :password
                                                  :name "password"
                                                  :value "")))
-                              (:p :href "#" :onclick (ps (login-callback))
+                              (:p :href "#" :onclick (ps:ps (login-callback))
                                   "Login"))))))
 
