@@ -137,7 +137,7 @@
                        :body
                        ((:center
                          (:p (format t "Welcome, ~a." username))))))
-      (failed-login-page username)))
+      (login-failure-page)))
 
 (defun redir-uri (uri)
   (hunchentoot:redirect uri))
@@ -219,15 +219,16 @@
   (setf (hunchentoot:session-value :username) nil)
   (hunchentoot:redirect "/"))
 
-(defparameter *dispatch-table*
-  (list
-   (hunchentoot:create-regex-dispatcher "^/$" #'main-login-page)
-   (hunchentoot:create-regex-dispatcher "^/logout$" #'logout-command)
-   (hunchentoot:create-regex-dispatcher
-    (concatenate 'string "^" *login-success-page* "$") #'login-success-page)
-   (hunchentoot:create-regex-dispatcher
-    (concatenate 'string "^" *login-failure-page* "$") #'login-failure-page)
-   (hunchentoot:create-regex-dispatcher
-    (concatenate 'string "^" *register-success-page* "$") #'register-success-page)
-   (hunchentoot:create-regex-dispatcher
-    (concatenate 'string "^" *register-failure-page* "$") #'register-failure-page)))
+(setf hunchentoot:*dispatch-table*
+      (append hunchentoot:*dispatch-table*
+              (list
+               (hunchentoot:create-regex-dispatcher "^/$" #'main-login-page)
+               (hunchentoot:create-regex-dispatcher "^/logout$" #'logout-command)
+               (hunchentoot:create-regex-dispatcher
+                (concatenate 'string "^" *login-success-page* "$") #'login-success-page)
+               (hunchentoot:create-regex-dispatcher
+                (concatenate 'string "^" *login-failure-page* "$") #'login-failure-page)
+               (hunchentoot:create-regex-dispatcher
+                (concatenate 'string "^" *register-success-page* "$") #'register-success-page)
+               (hunchentoot:create-regex-dispatcher
+                (concatenate 'string "^" *register-failure-page* "$") #'register-failure-page))))
