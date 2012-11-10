@@ -7,6 +7,10 @@
   :license "BSD"
   :depends-on (#:iterate
                #:vecto
+               #:cl-who
+               #:ironclad
+               #:parenscript
+               #:cl-fad
                #:hunchentoot)
   :components ((:file "package")
                (:file "diatimic")))
