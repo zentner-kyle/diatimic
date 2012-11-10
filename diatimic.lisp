@@ -2,6 +2,7 @@
 
 (in-package #:diatimic)
 
+(shadowing-import :cl-who)
 (use-package :cl-who)
 (shadowing-import :parenscript)
 (use-package :parenscript)
