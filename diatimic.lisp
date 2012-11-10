@@ -3,6 +3,7 @@
 (in-package #:diatimic)
 
 (use-package :cl-who)
+(shadowing-import :parenscript)
 (use-package :parenscript)
 
 ;;; "diatimic" goes here. Hacks and glory await!
