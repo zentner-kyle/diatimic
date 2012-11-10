@@ -68,9 +68,9 @@
             (:head
              (:meta :http-equiv "Content-Type"
                     :content "text/html;charset=utf-8")
-             ,(add-spreadsheet "/bootstrap.css")
-             ,(add-spreadsheet "/bootstrap-responsive.css")
-             ,(add-spreadsheet "/mainpage.css")
+             (:link :type "text/css" :href "/bootstrap.css" :rel "stylesheet")
+             (:link :type "text/css" :href "/bootstrap-responsive.css" :rel "stylesheet")
+             (:link :type "text/css" :href "/mainpage.css" :rel "stylesheet")
              (:title ,title)
              ,(macroexpand head))
             (:body ,@body))))
@@ -119,15 +119,14 @@
        (logout-link))))
 
 (defmacro redirect-to-main (&key (delay-milliseconds 2000))
-  (macroexpand
-   `(cl-who:with-html-output (*standard-output*)
-      (ps
-        (set-timeout (lambda ()
-                       (if (= (@ window location) "/")
-                           ((@ (@ window location) reload))
-                           (setf (@ window location) "/"))
-                       null)
-                     ,delay-milliseconds)))))
+  `(cl-who:with-html-output (*standard-output*)
+     (ps
+       (set-timeout (lambda ()
+                      (if (= (@ window location) "/")
+                          ((@ (@ window location) reload))
+                          (setf (@ window location) "/"))
+                      null)
+                    ,delay-milliseconds))))
 
 (defun login-result-page (username password)
   (if (confirm-password username password)
