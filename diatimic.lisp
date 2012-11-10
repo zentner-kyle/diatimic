@@ -14,7 +14,10 @@
 
 (defparameter *main-port* 17036)
 
+
 (defvar *main-acceptor* (make-instance 'hunchentoot:easy-acceptor :port *main-port*))
+
+(defvar *loaded* (hunchentoot:start *main-acceptor*))
 
 (defun hash-password (password)
   (ironclad:byte-array-to-hex-string 
