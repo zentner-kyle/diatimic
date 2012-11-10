@@ -10,7 +10,6 @@
 
 (defparameter *main-port* 17036)
 
-
 (defvar *main-acceptor* (make-instance 'hunchentoot:easy-acceptor :port *main-port*))
 
 (defvar *loaded* (hunchentoot:start *main-acceptor*))
@@ -23,10 +22,25 @@
 
 (defvar *user-name-password-map* (make-hash-table :test #'equal))
 
+(defun confirm-password (username password)
+  (let ((real-password (gethash username *user-name-password-map*)))
+    (equal (hash-password password) real-password)))
+
+(defun user-in-databasep (username)
+  (multiple-value-bind (_ present) (gethash username *user-name-password-map*)
+    (declare (ignore _))
+    present))
+
+(defun add-user-to-database (username password-hash)
+  (setf (gethash username *user-name-password-map*) (hash-password password-hash)))
+
+
 (defparameter *code-dir* (concatenate 'string
                                       #+sbcl(sb-posix:getcwd)
                                       #+ccl(format nil "~a" (ccl:current-directory)
                                                    ) "/" ))
+
+(defparameter *global-title* "diatimic, the graphing time tracker")
 
 ;; links bootstrap.css to my working dir
 (push
@@ -44,17 +58,11 @@
 (add-file-to-path "mainpage.css")
 (add-file-to-path "bootstrap-responsive.css")
 
-
-(defun confirm-password (username password)
-  (print "Confirming password!")
-  (let ((real-password (gethash username *user-name-password-map*)))
-    (equal (hash-password password) real-password)))
-
 ;; produces the cl-who code to add a spreadsheet
 (defun add-spreadsheet (file)
   `(:link :type "text/css" :href ,file :rel "stylesheet"))
 
-(defmacro std-html-page (title &body body)
+(defmacro std-html-page (&key title head body)
   `(with-html
      (:html :lang "en"
             (:head
@@ -63,26 +71,22 @@
              ,(add-spreadsheet "/bootstrap.css")
              ,(add-spreadsheet "/bootstrap-responsive.css")
              ,(add-spreadsheet "/mainpage.css")
-             (:title ,title))
-            ,@body)))
-
-(defun user-in-databasep (username)
-  (format t "~a" username))
-
+             (:title ,title)
+             ,(macroexpand head))
+            (:body ,@body))))
 
 (defmacro username-password-form (command form-id)
   (macroexpand
    `(cl-who:with-html-output (*standard-output* nil :prologue nil :indent t)
       (:form :method :post
              :id ,form-id
-             :onsubmit (ps:ps-inline
+             :onsubmit (ps-inline
                         (progn
-                          (when (= (ps:@ username value) "")
+                          (when (= (@ username value) "")
                             (alert "Please enter a username."))
-                          (when (= (ps:@ password value) "")
+                          (when (= (@ password value) "")
                             (alert "Please enter a password."))
-                          ;; (alert (+ "form id:" (ps:@ form_id value) ""))
-                          (setf (ps:@ form_id value) ,form-id)))
+                          (setf (@ form_id value) ,form-id)))
              (:input :type :hidden :name "form_id")
              (:p "Username")
              (:p (:input :type :text
@@ -101,42 +105,130 @@
 
 (defun string-non-empty (string) (and string (not (string-empty string))))
 
-(defmacro failed-login-page (username password used-form)
-  `(progn
-     (std-html-page :title "diatimic: Could not log in!"
-                          (:body (:center
-                                  (:p (format t "form: ~a" ,used-form))
-                                  (:p (format t "Sorry, could not log in as ~a" ,username)))))
-     ;; (setf ,username nil)
-     ;; (setf ,password nil)
-     ;; (setf ,used-form nil)
-     ))
 
-(hunchentoot:define-easy-handler (main-login-page :uri "/") ()
-  (print "TEST")
-  (let ((title "diatimic, the graphing time tracker")
-        (used-form (hunchentoot:post-parameter "form_id"))
+(defun logout-link ()
+  (cl-who:with-html-output (*standard-output*)
+    (:a :href "/logout" "Logout")))
+
+(defun main-page ()
+  (std-html-page :title *global-title*
+      :body
+       ((:center
+        (:h1 "diatimic")
+        (:h2 "A clock goes here!"))
+       (logout-link))))
+
+(defmacro redirect-to-main (&key (delay-milliseconds 2000))
+  (macroexpand
+   `(cl-who:with-html-output (*standard-output*)
+      (ps
+        (set-timeout (lambda ()
+                       (if (= (@ window location) "/")
+                           ((@ (@ window location) reload))
+                           (setf (@ window location) "/"))
+                       null)
+                     ,delay-milliseconds)))))
+
+(defun login-result-page (username password)
+  (if (confirm-password username password)
+      (progn
+        (setf (hunchentoot:session-value :username) username)
+        (std-html-page :title *global-title*
+                       :head (redirect-to-main)
+                       :body
+                       ((:center
+                         (:p (format t "Welcome, ~a." username))))))
+      (failed-login-page username)))
+
+(defun redir-uri (uri)
+  (hunchentoot:redirect uri))
+
+(defparameter *login-success-page* "/login-success")
+(defun login-success-page ()
+  (std-html-page :title *global-title*
+                       :head (redirect-to-main)
+                       :body
+                       ((:center
+                         (:p (format t "Welcome, ~a." (hunchentoot:session-value :username)))))))
+
+(defparameter *login-failure-page* "/login-failure")
+(defun login-failure-page ()
+  (std-html-page :title *global-title*
+                 :head (redirect-to-main)
+                 :body
+                 ((:center
+                   (:p (format t "Sorry, could not log in."))))))
+
+(defun login-check (username password)
+  (if (confirm-password username password)
+      (progn
+        (setf (hunchentoot:session-value :username) username)
+        (redir-uri *login-success-page*))
+      (redir-uri *login-failure-page*)))
+
+(defparameter *register-success-page* "/register-success")
+(defun register-success-page ()
+  (std-html-page :title *global-title*
+                       :body
+                       ((:center
+                        (:h1 (format t "Welcome, ~a. Your account was created successfully."
+                                     (hunchentoot:session-value :username)))))))
+
+(defparameter *register-failure-page* "/register-failure")
+(defun register-failure-page ()
+  (std-html-page :title *global-title*
+                     :head (redirect-to-main)
+                     :body
+                     ((:center
+                       (:h1 (format t "Sorry, that username is already in use."))))))
+
+(defun register-result-page (username password)
+  (if (user-in-databasep username)
+      (register-failure-page)
+      ;; (redir-uri *register-failure-page*)
+      (progn
+        (add-user-to-database username password)
+        (setf (hunchentoot:session-value :username) username)
+        (register-success-page))))
+
+(defun login-or-register-page ()
+  (std-html-page :title *global-title*
+                 :body ((:center
+                         (:h1 "Welcome to diatimic, the graphing time tracker!"))
+                        (:center
+                         (:p)
+                         (:p "Please login or register")
+                         (username-password-form "Login" "login-form")
+                         (username-password-form "Register" "register-form")))))
+
+
+(defun main-login-page ()
+  (let ((used-form (hunchentoot:post-parameter "form_id"))
         (username (hunchentoot:post-parameter "username"))
         (password (hunchentoot:post-parameter "password")))
     (hunchentoot:no-cache)
     (cond
+      ((hunchentoot:session-value :username)
+       (main-page))
       ((and (string= used-form "login-form") username password)
-       (if (confirm-password username password)
-           (progn
-             (setf (hunchentoot:session-value 'username) username)
-             (std-html-page title
-               (:body
-                (:center
-                 (:p (format t "Welcome, ~a." username))))))
-           (failed-login-page username password used-form)))
+       (login-result-page username password))
       ((and (string= used-form "register-form") username password)
-       (if (user-in-databasep username) nil))
-      (t (std-html-page :title title
-                        (:body (:center
-                                (:h1 "Welcome to diatimic, the graphing time tracker!"))
-                               (:center
-                                (:p)
-                                (:p "Please login or register")
-                                (username-password-form "Login" "login-form")
-                                (username-password-form "Register" "register-form"))))))))
+       (register-result-page username password))
+      (t (login-or-register-page)))))
 
+(defun logout-command ()
+  (setf (hunchentoot:session-value :username) nil)
+  (hunchentoot:redirect "/"))
+
+(defparameter *dispatch-table*
+  (list
+   (hunchentoot:create-regex-dispatcher "^/$" #'main-login-page)
+   (hunchentoot:create-regex-dispatcher "^/logout$" #'logout-command)
+   (hunchentoot:create-regex-dispatcher
+    (concatenate 'string "^" *login-success-page* "$") #'login-success-page)
+   (hunchentoot:create-regex-dispatcher
+    (concatenate 'string "^" *login-failure-page* "$") #'login-failure-page)
+   (hunchentoot:create-regex-dispatcher
+    (concatenate 'string "^" *register-success-page* "$") #'register-success-page)
+   (hunchentoot:create-regex-dispatcher
+    (concatenate 'string "^" *register-failure-page* "$") #'register-failure-page)))
