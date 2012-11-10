@@ -36,6 +36,7 @@
 (add-file-to-path "mainpage.css")
 (add-file-to-path "bootstrap-responsive.css")
 (add-file-to-path "jquery-latest.js")
+(add-file-to-path "jquery.timer.js")
 
 (defun confirm-password (username password)
   (let ((real-password (gethash username *user-name-password-map*)))
@@ -51,8 +52,11 @@
              (:link :type "text/css" :href "/bootstrap-responsive.css" :rel "stylesheet")
              (:link :type "text/css" :href "/mainpage.css" :rel "stylesheet")
              (:script :src "/jquery-latest.js")
+             (:script :src "/jquery.timer.js")
              (:title ,title))
             ,@body)))
+
+(defmacro )
 
 (hunchentoot:define-easy-handler (main-login-page :uri "/") ()
   (let ((title "diatimic, the graphing time tracker")
@@ -69,7 +73,7 @@
                                     (progn
                                       (setf time 0)
                                       (setf stopped true)
-                                      ((@ window set-interval) periodic-task 1000)
+                                      ((@ window set-interval) periodic-task 10)
                                       ((@ ($ "div.second") append)
                                        "<center class=added ><h1>0</h1></center>")
                                       (+ 1 2)
