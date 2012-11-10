@@ -26,14 +26,28 @@
 (defparameter *code-dir* (concatenate 'string (sb-posix:getcwd) "/" ))
 
 ;; links bootstrap.css to my working dir
-(push
- (hunchentoot:create-static-file-dispatcher-and-handler
-  "/bootstrap.css" (concatenate 'string *code-dir* "bootstrap.css"))
-      hunchentoot:*dispatch-table*)
+;; (push
+;;  (hunchentoot:create-static-file-dispatcher-and-handler
+;;   "bootstrap.css" (concatenate 'string *code-dir* "bootstrap.css"))
+;;       hunchentoot:*dispatch-table*)
+
+(add-file-to-path "bootstrap.css")
+(add-file-to-path "mainpage.css")
+(add-file-to-path "bootstrap-responsive.css")
+
+(defun add-file-to-path (file)
+  (push
+   (hunchentoot:create-static-file-dispatcher-and-handler
+         file (concatenate 'string *code-dir* file))
+        hunchentoot:*dispatch-table*))
 
 (defun confirm-password (username password)
   (let ((real-password (gethash username *user-name-password-map*)))
     (equal (hash-password password) real-password)))
+
+;; produces the cl-who code to add a spreadsheet
+(defun add-spreadsheet (file)
+  ` (:link :type "text/css" :href ,file :rel "stylesheet"))
 
 (defmacro std-html-page (title &body body)
   `(with-html
@@ -41,7 +55,10 @@
             (:head
              (:meta :http-equiv "Content-Type"
                     :content "text/html;charset=utf-8")
-             (:link :type "text/css" :href "/bootstrap.css" :rel "stylesheet")
+             ,(add-spreadsheet "/bootstrap.css")
+             ,(add-spreadsheet "/bootstrap-responsive.css")
+             ,(add-spreadsheet "/mainpage.css")
+;             (:link :type "text/css" :href "bootstrap.css" :rel "stylesheet")
              (:title ,title))
             ,@body)))
 
@@ -56,6 +73,7 @@
               (setf (hunchentoot:session-value 'username) username)
               (std-html-page title
                 (:body
+                 (:div :class )
                  (:center
                   (:p (format t "Welcome, ~a." username))))))
             (std-html-page :title "diatimic: Could not log in!"
