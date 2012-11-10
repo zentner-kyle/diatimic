@@ -16,12 +16,20 @@
 (defvar *loaded* (hunchentoot:start *main-acceptor*))
 
 (defun hash-password (password)
-  (ironclad:byte-array-to-hex-string 
-   (ironclad:digest-sequence 
+  (ironclad:byte-array-to-hex-string
+   (ironclad:digest-sequence
     :sha1
     (ironclad:ascii-string-to-byte-array password))))
 
 (defvar *user-name-password-map* (make-hash-table))
+
+(defparameter *code-dir* (concatenate 'string (sb-posix:getcwd) "/" ))
+
+;; links bootstrap.css to my working dir
+(push
+ (hunchentoot:create-static-file-dispatcher-and-handler
+  "/bootstrap.css" (concatenate 'string *code-dir* "bootstrap.css"))
+      hunchentoot:*dispatch-table*)
 
 (defun confirm-password (username password)
   (let ((real-password (gethash username *user-name-password-map*)))
@@ -33,6 +41,7 @@
             (:head
              (:meta :http-equiv "Content-Type"
                     :content "text/html;charset=utf-8")
+             (:link :type "text/css" :href "/bootstrap.css" :rel "stylesheet")
              (:title ,title))
             ,@body)))
 
@@ -58,7 +67,7 @@
                                        (defun login-callback ()
                                          (alert "Logging in!")))))
                        (:body (:center
-                               (:p "Welcome to diatimic, the graphing time tracker!"))
+                               (:h1 "Welcome to diatimic, the graphing time tracker!"))
                               (:p "Please login")
                               (:p "Username")
                               (:p (:form :method :post
@@ -70,6 +79,6 @@
                                          (:input :type :password
                                                  :name "password"
                                                  :value "")))
-                              (:p :href "#" :onclick (ps:ps (login-callback))
+                              (:a :class "btn btn-primary btn-large" :style "padding:14px 0px; margin-bottom:0px;width: 50%;" :href "#" :onclick (ps:ps (login-callback))
                                   "Login"))))))
 
