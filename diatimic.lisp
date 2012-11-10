@@ -21,7 +21,7 @@
     :sha1
     (ironclad:ascii-string-to-byte-array password))))
 
-(defvar *user-name-password-map* (make-hash-table))
+(defvar *user-name-password-map* (make-hash-table :test #'equal))
 
 (defparameter *code-dir* (concatenate 'string
                                       #+sbcl(sb-posix:getcwd)
@@ -52,7 +52,7 @@
 
 ;; produces the cl-who code to add a spreadsheet
 (defun add-spreadsheet (file)
-  ` (:link :type "text/css" :href ,file :rel "stylesheet"))
+  `(:link :type "text/css" :href ,file :rel "stylesheet"))
 
 (defmacro std-html-page (title &body body)
   `(with-html
@@ -63,48 +63,80 @@
              ,(add-spreadsheet "/bootstrap.css")
              ,(add-spreadsheet "/bootstrap-responsive.css")
              ,(add-spreadsheet "/mainpage.css")
-;             (:link :type "text/css" :href "bootstrap.css" :rel "stylesheet")
              (:title ,title))
             ,@body)))
 
+(defun user-in-databasep (username)
+  (format t "~a" username))
+
+
+(defmacro username-password-form (command form-id)
+  (macroexpand
+   `(cl-who:with-html-output (*standard-output* nil :prologue nil :indent t)
+      (:form :method :post
+             :id ,form-id
+             :onsubmit (ps:ps-inline
+                        (progn
+                          (when (= (ps:@ username value) "")
+                            (alert "Please enter a username."))
+                          (when (= (ps:@ password value) "")
+                            (alert "Please enter a password."))
+                          ;; (alert (+ "form id:" (ps:@ form_id value) ""))
+                          (setf (ps:@ form_id value) ,form-id)))
+             (:input :type :hidden :name "form_id")
+             (:p "Username")
+             (:p (:input :type :text
+                         :name "username"))
+             (:p "Password")
+             (:p (:input :type :password
+                         :name "password"))
+             (:p (:input 
+                  :type :submit
+                  :class "btn btn-primary btn-large"
+                  :style "padding:14px 0px; margin-bottom:0px;width: 50%;"
+                  :value ,command))))))
+
+(defun string-empty (string)
+  (< 0 (length string)))
+
+(defun string-non-empty (string) (and string (not (string-empty string))))
+
+(defmacro failed-login-page (username password used-form)
+  `(progn
+     (std-html-page :title "diatimic: Could not log in!"
+                          (:body (:center
+                                  (:p (format t "form: ~a" ,used-form))
+                                  (:p (format t "Sorry, could not log in as ~a" ,username)))))
+     ;; (setf ,username nil)
+     ;; (setf ,password nil)
+     ;; (setf ,used-form nil)
+     ))
+
 (hunchentoot:define-easy-handler (main-login-page :uri "/") ()
-  (format t "TESTSTESTSTEST")
+  (print "TEST")
   (let ((title "diatimic, the graphing time tracker")
+        (used-form (hunchentoot:post-parameter "form_id"))
         (username (hunchentoot:post-parameter "username"))
         (password (hunchentoot:post-parameter "password")))
-    ;; (hunchentoot:no-cache)
-    (if (and username password)
-        (if (confirm-password username password)
-            (progn
-              (setf (hunchentoot:session-value 'username) username)
-              (std-html-page title
-                (:body
-                 (:div :class )
-                 (:center
-                  (:p (format t "Welcome, ~a." username))))))
-            (std-html-page :title "diatimic: Could not log in!"
-                           (:body (:center
-                                   (:p (format t "Sorry, could not log in as ~a" username))))))
-        (std-html-page :title title
-                       (:body (:center
-                               (:h1 "Welcome to diatimic, the graphing time tracker!"))
-                              (:p "Please login")
-                              (:p "Username")
-                              (:form :method :post
-                                     :onsubmit (ps:ps-inline
-                                                (progn
-                                                  (when (= (ps:@ username value) "")
-                                                    (alert "Please enter a username."))
-                                                  (when (= (ps:@ password value) "")
-                                                    (alert "Please enter a password."))))
-                                     (:p (:input :type :text
-                                                 :name "username"))
-                                     (:p "Password")
-                                     (:p (:input :type :password
-                                                 :name "password"))
-                                     (:p (:input
-                                          :type :submit
-                                          :class "btn btn-primary btn-large"
-                                          :style "padding:14px 0px; margin-bottom:0px;width: 50%;"
-                                          :value "Login"))))))))
+    (hunchentoot:no-cache)
+    (cond
+      ((and (string= used-form "login-form") username password)
+       (if (confirm-password username password)
+           (progn
+             (setf (hunchentoot:session-value 'username) username)
+             (std-html-page title
+               (:body
+                (:center
+                 (:p (format t "Welcome, ~a." username))))))
+           (failed-login-page username password used-form)))
+      ((and (string= used-form "register-form") username password)
+       (if (user-in-databasep username) nil))
+      (t (std-html-page :title title
+                        (:body (:center
+                                (:h1 "Welcome to diatimic, the graphing time tracker!"))
+                               (:center
+                                (:p)
+                                (:p "Please login or register")
+                                (username-password-form "Login" "login-form")
+                                (username-password-form "Register" "register-form"))))))))
 
