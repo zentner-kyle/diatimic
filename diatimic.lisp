@@ -71,9 +71,9 @@
              (:link :type "text/css" :href "/bootstrap.css" :rel "stylesheet")
              (:link :type "text/css" :href "/bootstrap-responsive.css" :rel "stylesheet")
              (:link :type "text/css" :href "/mainpage.css" :rel "stylesheet")
-             (:title ,title)
-             ,(macroexpand head))
-            (:body ,@body))))
+             (:title (cl-who:str ,title))
+             (cl-who:str ,head))
+            (:body ,@(macroexpand body)))))
 
 (defmacro username-password-form (command form-id)
   (macroexpand
@@ -118,15 +118,16 @@
         (:h2 "A clock goes here!"))
        (logout-link))))
 
-(defmacro redirect-to-main (&key (delay-milliseconds 2000))
-  `(cl-who:with-html-output (*standard-output*)
-     (ps
-       (set-timeout (lambda ()
-                      (if (= (@ window location) "/")
-                          ((@ (@ window location) reload))
-                          (setf (@ window location) "/"))
-                      null)
-                    ,delay-milliseconds))))
+(defvar *redirect-to-main-script*
+  (concatenate 'string "<script>"
+               (ps
+                 (set-timeout (lambda ()
+                                (if (= (@ window location) "/")
+                                    ((@ (@ window location) reload))
+                                    (setf (@ window location) "/"))
+                                null)
+                              2000))
+               "</script>"))
 
 (defun login-result-page (username password)
   (if (confirm-password username password)
@@ -145,10 +146,10 @@
 (defparameter *login-success-page* "/login-success")
 (defun login-success-page ()
   (std-html-page :title *global-title*
-                       :head (redirect-to-main)
-                       :body
-                       ((:center
-                         (:p (format t "Welcome, ~a." (hunchentoot:session-value :username)))))))
+                 :head (redirect-to-main)
+                 :body
+                 ((:center
+                   (:p (format t "Welcome, ~a." (hunchentoot:session-value :username)))))))
 
 (defparameter *login-failure-page* "/login-failure")
 (defun login-failure-page ()
@@ -168,27 +169,27 @@
 (defparameter *register-success-page* "/register-success")
 (defun register-success-page ()
   (std-html-page :title *global-title*
-                       :body
-                       ((:center
-                        (:h1 (format t "Welcome, ~a. Your account was created successfully."
-                                     (hunchentoot:session-value :username)))))))
+                 :head (redirect-to-main)
+                 :body
+                 ((:center
+                   (:h1 (format t "Welcome, ~a. Your account was created successfully."
+                                (hunchentoot:session-value :username)))))))
 
 (defparameter *register-failure-page* "/register-failure")
 (defun register-failure-page ()
   (std-html-page :title *global-title*
-                     :head (redirect-to-main)
-                     :body
-                     ((:center
-                       (:h1 (format t "Sorry, that username is already in use."))))))
+                 :head (redirect-to-main)
+                 :body
+                 ((:center
+                   (:h1 (format t "Sorry, that username is already in use."))))))
 
 (defun register-result-page (username password)
   (if (user-in-databasep username)
-      (register-failure-page)
-      ;; (redir-uri *register-failure-page*)
+      (redir-uri *register-failure-page*)
       (progn
         (add-user-to-database username password)
         (setf (hunchentoot:session-value :username) username)
-        (register-success-page))))
+        (redir-uri *register-success-page*))))
 
 (defun login-or-register-page ()
   (std-html-page :title *global-title*
